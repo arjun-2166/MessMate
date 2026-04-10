@@ -80,6 +80,15 @@ MessMate/
 │── .gitignore # Ignore files
 │── .env # Environment variables
 
+## ⚡ How to Run
+1. Install dependencies:
+npm install
+
+2. Start server:
+node server.js
+
+3. Open index.html in browser
+
 ## 📌 Future Improvements
 
 - Integration with MongoDB for persistent storage
