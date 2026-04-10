@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MessMate</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #eef2f7;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    .days button {
+      padding: 8px 12px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #ddd;
+    }
+
+    .active {
+      background: #333;
+      color: white;
+    }
+
+    .container {
+      width: 60%;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 15px;
+      margin: 15px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+    }
+
+    button.like {
+      background: green;
+      color: white;
+    }
+
+    button.dislike {
+      background: red;
+      color: white;
+    }
+
+    textarea {
+      width: 80%;
+      height: 60px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🍽️ MessMate</h1>
+
+<div class="days" id="days"></div>
+
+<div class="container" id="menu">
+  <div class="card">
+    <h3>📅 Select a day to view menu</h3>
+    <p>Choose any day above to see lunch & dinner with feedback.</p>
+  </div>
+</div>
+
+<div class="card" id="feedbackSection" style="display:none;">
+  <h3>Feedback</h3>
+  <textarea id="feedbackText"></textarea><br>
+  <button onclick="submitFeedback()">Submit</button>
+
+  <h4>Recent Feedback</h4>
+  <ul id="feedbackList"></ul>
+</div>
+
+<script>
+const data = {
+  Monday: { lunch: "Paneer", dinner: "Biryani" },
+  Tuesday: { lunch: "Dal Rice", dinner: "Roti Sabzi" },
+  Wednesday: { lunch: "Chole", dinner: "Fried Rice" },
+  Thursday: { lunch: "Kadhi", dinner: "Pulao" },
+  Friday: { lunch: "Rajma", dinner: "Noodles" },
+  Saturday: { lunch: "Mix Veg", dinner: "Pizza" },
+  Sunday: { lunch: "Special Thali", dinner: "Ice Cream" }
+};
+
+let stats = {
+  Monday: { lunch: { like:5, dislike:2, state:null }, dinner:{ like:7, dislike:3, state:null }},
+  Tuesday:{ lunch:{ like:3, dislike:1, state:null }, dinner:{ like:6, dislike:2, state:null }},
+  Wednesday:{ lunch:{ like:4, dislike:2, state:null }, dinner:{ like:5, dislike:1, state:null }},
+  Thursday:{ lunch:{ like:6, dislike:1, state:null }, dinner:{ like:3, dislike:2, state:null }},
+  Friday:{ lunch:{ like:8, dislike:2, state:null }, dinner:{ like:7, dislike:3, state:null }},
+  Saturday:{ lunch:{ like:5, dislike:2, state:null }, dinner:{ like:9, dislike:1, state:null }},
+  Sunday:{ lunch:{ like:10, dislike:3, state:null }, dinner:{ like:8, dislike:2, state:null }}
+};
+
+function renderDays() {
+  let html = "";
+  Object.keys(data).forEach(day => {
+    html += `<button onclick="loadDay('${day}', this)">${day}</button>`;
+  });
+  document.getElementById("days").innerHTML = html;
+}
+
+function percent(a, b) {
+  let total = a + b;
+  return total ? Math.round((a / total) * 100) : 0;
+}
+
+function loadDay(day, btn) {
+  document.querySelectorAll(".days button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  document.getElementById("feedbackSection").style.display = "block";
+
+  let d = data[day];
+  let s = stats[day];
+
+  document.getElementById("menu").innerHTML = `
+    <div class="card">
+      <h2>${day} Menu</h2>
+    </div>
+
+    <div class="card">
+      <h3>Lunch: ${d.lunch}</h3>
+      👍 ${s.lunch.like} (${percent(s.lunch.like, s.lunch.dislike)}%)
+      👎 ${s.lunch.dislike} (${percent(s.lunch.dislike, s.lunch.like)}%)
+      <br>
+      <button class="like" onclick="vote('${day}','lunch','like')">Like</button>
+      <button class="dislike" onclick="vote('${day}','lunch','dislike')">Dislike</button>
+    </div>
+
+    <div class="card">
+      <h3>Dinner: ${d.dinner}</h3>
+      👍 ${s.dinner.like} (${percent(s.dinner.like, s.dinner.dislike)}%)
+      👎 ${s.dinner.dislike} (${percent(s.dinner.dislike, s.dinner.like)}%)
+      <br>
+      <button class="like" onclick="vote('${day}','dinner','like')">Like</button>
+      <button class="dislike" onclick="vote('${day}','dinner','dislike')">Dislike</button>
+    </div>
+  `;
+
+  loadFeedback(); // 🔥 backend se data fetch
+}
+
+function vote(day, meal, action) {
+  let item = stats[day][meal];
+
+  if (item.state === action) return;
+
+  if (item.state === "like") item.like--;
+  if (item.state === "dislike") item.dislike--;
+
+  if (action === "like") item.like++;
+  if (action === "dislike") item.dislike++;
+
+  item.state = action;
+
+  loadDay(day, document.querySelector(".active"));
+}
+
+// 🔥 BACKEND CONNECTED FUNCTIONS
+
+async function submitFeedback() {
+  let text = document.getElementById("feedbackText").value;
+  if (!text) return;
+
+  await fetch("http://localhost:3000/feedback", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text })
+  });
+
+  document.getElementById("feedbackText").value = "";
+  loadFeedback();
+}
+
+async function loadFeedback() {
+  let res = await fetch("http://localhost:3000/feedback");
+  let data = await res.json();
+
+  document.getElementById("feedbackList").innerHTML =
+    data.map(f => `<li>${f}</li>`).join("");
+}
+
+renderDays();
+</script>
+
+</body>
+</html>
